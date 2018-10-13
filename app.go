@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http" //dao "github.com/5olFunk/blackhawkscorpio-api/dao"
 	//. "github.com/5olFunk/blackhawkscorpio-api/models"
+	"os"
 	"strings"
 
 	"github.com/gorilla/handlers"
@@ -26,9 +27,9 @@ type Place struct {
 }
 
 type Rating struct {
-	Culture string   `json:"culture"`
-	Score   float64  `json:"score"`
-	Comment []string `json:"comments"`
+	Culture  string   `json:"culture"`
+	Score    float64  `json:"score"`
+	Comments []string `json:"comments"`
 }
 
 type GoogleResponse struct {
@@ -54,22 +55,6 @@ type Geometry struct {
 type Location struct {
 	Lat float64 `json:"lat"`
 	Lng float64 `json:"lng"`
-}
-
-func initPlacesStore() {
-	placesStore = append(placesStore, Place{
-		ID:   "2cd08fe4952bd66e26fa79cdd43afd1844d203c6",
-		Name: "super cool place 1",
-		Lat:  38.774349,
-		Long: -90.166409,
-		Ratings: []Rating{Rating{
-			"TX",
-			6.7,
-			[]string{
-				"This place is great",
-				"SO MUCH HEARTBURN",
-			},
-		}}})
 }
 
 func findById(xs []Place, id string) *Place {
@@ -160,46 +145,7 @@ func SearchPlacesEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	hydratedResults := hydrateResults(searchResults)
 	respondWithJson(w, 200, hydratedResults)
-	//var objMap = map[string]*json.RawMessage
-	//results, err := json.Unmarshal([])
-
-	//results := searchResults["results"]
-	//log.Print(json.M
-
-	// res, err := googleSearchifyRaw(params["phrase"])
-	// if err != nil {
-	// 	respondWithError(w, 400, "narf.")
-	// }
-	// w.Header().Set("Content-Type", "application/json")
-	// w.WriteHeader(200)
-	// w.Write([]byte(res))
-
 }
-
-// func GetPlaceByIdEndpoint(w http.ResponseWriter, r *http.Request) {
-// 	params := mux.Vars(r)
-// 	place, err := dao.FindById(params["id"])
-// 	if err != nil {
-// 		respondWithError(w, http.StatusBadRequest, "Invalid Place ID")
-// 		return
-// 	}
-// 	respondWithJson(w, http.StatusOK, place)
-// }
-
-// func CreatePlaceEndpoint(w http.ResponseWriter, r *http.Request) {
-// 	defer r.Body.Close()
-// 	var place Place
-// 	if err := json.NewDecoder(r.Body).Decode(&place); err != nil {
-// 		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
-// 		return
-// 	}
-// 	place.ID = bson.NewObjectId()
-// 	if err := dao.Insert(place); err != nil {
-// 		respondWithError(w, http.StatusInternalServerError, err.Error())
-// 		return
-// 	}
-// 	respondWithJson(w, http.StatusCreated, place)
-// }
 
 func respondWithError(w http.ResponseWriter, code int, msg string) {
 	respondWithJson(w, code, map[string]string{"error": msg})
@@ -212,14 +158,28 @@ func respondWithJson(w http.ResponseWriter, code int, payload interface{}) {
 	w.Write(response)
 }
 
+func init() {
+	jsonFile, err := os.Open("data.json")
+
+	if err != nil {
+		log.Print("Error opening data.json" + err.Error())
+	}
+
+	defer jsonFile.Close()
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+
+	err = json.Unmarshal(byteValue, &placesStore)
+	if err != nil {
+		log.Print(err)
+	}
+	log.Print(placesStore[0].ID)
+}
+
 func main() {
 	r := mux.NewRouter()
-	initPlacesStore()
 	corsObj := handlers.AllowedOrigins([]string{"*"})
 
 	r.HandleFunc("/placesSearch/{phrase}", SearchPlacesEndpoint).Methods("GET")
-	//r.HandleFunc("/places/{id}", GetPlaceByIdEndpoint).Methods("GET")
-	//r.HandleFunc("/places", CreatePlaceEndpoint).Methods("POST")
 	if err := http.ListenAndServe(":3000", handlers.CORS(corsObj)(r)); err != nil {
 		log.Fatal(err)
 	}
