@@ -181,5 +181,7 @@ func main() {
 	r.HandleFunc("/placesSearch/{phrase}", SearchPlacesEndpoint).Methods("GET")
 	if err := http.ListenAndServe(":3000", handlers.CORS(corsObj)(r)); err != nil {
 		log.Fatal(err)
+	} else {
+		log.Print("Listening on localhost:3000")
 	}
 }
