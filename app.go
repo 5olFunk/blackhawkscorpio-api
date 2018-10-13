@@ -158,11 +158,13 @@ func respondWithJson(w http.ResponseWriter, code int, payload interface{}) {
 	w.Write(response)
 }
 
+const port = ":3000"
+
 func init() {
 	jsonFile, err := os.Open("data.json")
 
 	if err != nil {
-		log.Print("Error opening data.json" + err.Error())
+		log.Print("Error opening data.json: " + err.Error())
 	}
 
 	defer jsonFile.Close()
@@ -179,9 +181,8 @@ func main() {
 	corsObj := handlers.AllowedOrigins([]string{"*"})
 
 	r.HandleFunc("/placesSearch/{phrase}", SearchPlacesEndpoint).Methods("GET")
-	if err := http.ListenAndServe(":3000", handlers.CORS(corsObj)(r)); err != nil {
+	log.Print("Listening on localhost" + port)
+	if err := http.ListenAndServe(port, handlers.CORS(corsObj)(r)); err != nil {
 		log.Fatal(err)
-	} else {
-		log.Print("Listening on localhost:3000")
 	}
 }
