@@ -172,7 +172,6 @@ func init() {
 	if err != nil {
 		log.Print(err)
 	}
-	log.Print(placesStore[0].ID)
 }
 
 func main() {
