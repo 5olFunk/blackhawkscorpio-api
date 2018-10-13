@@ -7,7 +7,9 @@ import (
 	"log"
 	"net/http" //dao "github.com/5olFunk/blackhawkscorpio-api/dao"
 	//. "github.com/5olFunk/blackhawkscorpio-api/models"
+	"strings"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	//"gopkg.in/mgo.v2/bson"
 )
@@ -19,6 +21,7 @@ type Place struct {
 	Name    string   `json:"name"`
 	Lat     float64  `json:"lat"`
 	Long    float64  `json:"long"`
+	Images  []string `json:"images"`
 	Ratings []Rating `json:"ratings"`
 }
 
@@ -37,6 +40,11 @@ type Result struct {
 	ID       string   `json:"id"`
 	Name     string   `json:"name"`
 	Rating   float32  `json:"rating"`
+	Photos   []Photo  `json:"photos"`
+}
+
+type Photo struct {
+	HtmlAttributions []string `json:"html_attributions"`
 }
 
 type Geometry struct {
@@ -94,6 +102,17 @@ func googleSearchify(phrase string) ([]Result, error) {
 	return tmp.Results, nil
 }
 
+func unquoteAndUntag(str string) string {
+	splitRes := strings.Split(str, "\"")
+
+	if len(splitRes) >= 2 {
+		return splitRes[1]
+	} else {
+		return ""
+	}
+
+}
+
 func hydrateResults(googleResults []Result) []Place {
 	var places []Place
 	for _, res := range googleResults {
@@ -111,11 +130,20 @@ func hydrateResults(googleResults []Result) []Place {
 			ratings = append(ratings, usrating)
 		}
 
+		var unquotedImages []string
+		for _, x := range res.Photos {
+
+			unquotedImages = append(
+				unquotedImages,
+				unquoteAndUntag(x.HtmlAttributions[0]))
+		}
+
 		places = append(places, Place{
 			ID:      res.ID,
 			Name:    res.Name,
 			Lat:     res.Geometry.Location.Lat,
 			Long:    res.Geometry.Location.Lng,
+			Images:  unquotedImages,
 			Ratings: ratings,
 		})
 
@@ -187,10 +215,12 @@ func respondWithJson(w http.ResponseWriter, code int, payload interface{}) {
 func main() {
 	r := mux.NewRouter()
 	initPlacesStore()
+	corsObj := handlers.AllowedOrigins([]string{"*"})
+
 	r.HandleFunc("/placesSearch/{phrase}", SearchPlacesEndpoint).Methods("GET")
 	//r.HandleFunc("/places/{id}", GetPlaceByIdEndpoint).Methods("GET")
 	//r.HandleFunc("/places", CreatePlaceEndpoint).Methods("POST")
-	if err := http.ListenAndServe(":3000", r); err != nil {
+	if err := http.ListenAndServe(":3000", handlers.CORS(corsObj)(r)); err != nil {
 		log.Fatal(err)
 	}
 }
