@@ -12,7 +12,7 @@ import (
 	//"gopkg.in/mgo.v2/bson"
 )
 
-var places []Place
+var placesStore []Place
 
 type Place struct {
 	ID      string   `json:"id"`
@@ -48,24 +48,33 @@ type Location struct {
 	Lng float64 `json:"lng"`
 }
 
-func initPlaces() {
-	places = append(places, Place{
-		ID:   "1234567788",
+func initPlacesStore() {
+	placesStore = append(placesStore, Place{
+		ID:   "2cd08fe4952bd66e26fa79cdd43afd1844d203c6",
 		Name: "super cool place 1",
 		Lat:  38.774349,
 		Long: -90.166409,
 		Ratings: []Rating{Rating{
-			"US",
+			"TX",
 			6.7,
 			[]string{
 				"This place is great",
-				"naah, bad hot wings",
+				"SO MUCH HEARTBURN",
 			},
 		}}})
 }
 
+func findById(xs []Place, id string) *Place {
+	for _, x := range xs {
+		if x.ID == id {
+			return &x
+		}
+	}
+	return nil
+}
+
 func googleSearchify(phrase string) ([]Result, error) {
-	here := "https://maps.googleapis.com/maps/api/place/nearbysearch/json?key=AIzaSyCOQ1mHzFff_OkGigI4RgZ6pOQbFufExnI&location=38.632069,-90.227531&radius=16093.4"
+	here := "https://maps.googleapis.com/maps/api/place/nearbysearch/json?key=AIzaSyBjY8lU-8KkRNYHP6fqCunBqYhDyGgdz0A&location=38.632069,-90.227531&radius=16093.4"
 	resp, err := http.Get(here + "&keyword=" + phrase)
 	if err != nil {
 		return nil, err
@@ -85,26 +94,33 @@ func googleSearchify(phrase string) ([]Result, error) {
 	return tmp.Results, nil
 }
 
-func googleSearchifyRaw(phrase string) (string, error) {
-	here := "https://maps.googleapis.com/maps/api/place/nearbysearch/json?key=AIzaSyCOQ1mHzFff_OkGigI4RgZ6pOQbFufExnI&location=38.632069,-90.227531&radius=16093.4"
-	resp, err := http.Get(here + "&keyword=" + phrase)
-	if err != nil {
-		return "", err
+func hydrateResults(googleResults []Result) []Place {
+	var places []Place
+	for _, res := range googleResults {
+
+		match := findById(placesStore, res.ID)
+		usrating := Rating{
+			Culture: "US",
+			Score:   float64(res.Rating),
+		}
+
+		var ratings []Rating
+		if match != nil {
+			ratings = append(match.Ratings, usrating)
+		} else {
+			ratings = append(ratings, usrating)
+		}
+
+		places = append(places, Place{
+			ID:      res.ID,
+			Name:    res.Name,
+			Lat:     res.Geometry.Location.Lat,
+			Long:    res.Geometry.Location.Lng,
+			Ratings: ratings,
+		})
+
 	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	// var tmp map[string]interface{}
-	// if err := json.Unmarshal(body, &tmp); err != nil {
-	// 	return "", err
-	// }
-
-	// log.Print(string(tmp["results"].(string)))
-
-	return string(body), nil
+	return places
 }
 
 // this will eventually take a search phrase and return
@@ -113,7 +129,9 @@ func SearchPlacesEndpoint(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
 	searchResults, _ := googleSearchify(params["phrase"])
-	respondWithJson(w, 200, searchResults)
+
+	hydratedResults := hydrateResults(searchResults)
+	respondWithJson(w, 200, hydratedResults)
 	//var objMap = map[string]*json.RawMessage
 	//results, err := json.Unmarshal([])
 
@@ -168,7 +186,7 @@ func respondWithJson(w http.ResponseWriter, code int, payload interface{}) {
 
 func main() {
 	r := mux.NewRouter()
-	initPlaces()
+	initPlacesStore()
 	r.HandleFunc("/placesSearch/{phrase}", SearchPlacesEndpoint).Methods("GET")
 	//r.HandleFunc("/places/{id}", GetPlaceByIdEndpoint).Methods("GET")
 	//r.HandleFunc("/places", CreatePlaceEndpoint).Methods("POST")
