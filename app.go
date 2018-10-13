@@ -44,16 +44,48 @@ func initPlaces() {
 		}}})
 }
 
-func googleSearchify(phrase string) string {
+func googleSearchify(phrase string) (string, error) {
 	here := "https://maps.googleapis.com/maps/api/place/nearbysearch/json?key=AIzaSyCOQ1mHzFff_OkGigI4RgZ6pOQbFufExnI&location=38.632069,-90.227531&radius=16093.4"
 	resp, err := http.Get(here + "&keyword=" + phrase)
 	if err != nil {
-		return err.Error()
+		return "", err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
 
-	return string(body)
+	var tmp map[string]interface{}
+	if err := json.Unmarshal(body, &tmp); err != nil {
+		return "", err
+	}
+
+	log.Print(string(tmp["results"].(string)))
+
+	return string(body), nil
+}
+
+func googleSearchifyRaw(phrase string) (string, error) {
+	here := "https://maps.googleapis.com/maps/api/place/nearbysearch/json?key=AIzaSyCOQ1mHzFff_OkGigI4RgZ6pOQbFufExnI&location=38.632069,-90.227531&radius=16093.4"
+	resp, err := http.Get(here + "&keyword=" + phrase)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	// var tmp map[string]interface{}
+	// if err := json.Unmarshal(body, &tmp); err != nil {
+	// 	return "", err
+	// }
+
+	// log.Print(string(tmp["results"].(string)))
+
+	return string(body), nil
 }
 
 // this will eventually take a search phrase and return
@@ -69,9 +101,13 @@ func SearchPlacesEndpoint(w http.ResponseWriter, r *http.Request) {
 	//results := searchResults["results"]
 	//log.Print(json.M
 
+	res, err := googleSearchifyRaw(params["phrase"])
+	if err != nil {
+		respondWithError(w, 400, "narf.")
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
-	w.Write([]byte(googleSearchify(params["phrase"])))
+	w.Write([]byte(res))
 	//respondWithJson(w, http.StatusOK, googleSearchify(params["phrase"]))
 
 	// search, err := .FindById(params["phrase"])
