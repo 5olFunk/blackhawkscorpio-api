@@ -28,6 +28,26 @@ type Rating struct {
 	Comment []string `json:"comments"`
 }
 
+type GoogleResponse struct {
+	Results []Result `json:"results"`
+}
+
+type Result struct {
+	Geometry Geometry `json:"geometry"`
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Rating   float32  `json:"rating"`
+}
+
+type Geometry struct {
+	Location Location `json:"location"`
+}
+
+type Location struct {
+	Lat float64 `json:"lat"`
+	Lng float64 `json:"lng"`
+}
+
 func initPlaces() {
 	places = append(places, Place{
 		ID:   "1234567788",
@@ -44,26 +64,25 @@ func initPlaces() {
 		}}})
 }
 
-func googleSearchify(phrase string) (string, error) {
+func googleSearchify(phrase string) ([]Result, error) {
 	here := "https://maps.googleapis.com/maps/api/place/nearbysearch/json?key=AIzaSyCOQ1mHzFff_OkGigI4RgZ6pOQbFufExnI&location=38.632069,-90.227531&radius=16093.4"
 	resp, err := http.Get(here + "&keyword=" + phrase)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		log.Print("Failed to read body.")
+		return nil, err
 	}
 
-	var tmp map[string]interface{}
+	var tmp GoogleResponse
 	if err := json.Unmarshal(body, &tmp); err != nil {
-		return "", err
+		log.Print("Failed to parse body to results")
+		return nil, err
 	}
-
-	log.Print(string(tmp["results"].(string)))
-
-	return string(body), nil
+	return tmp.Results, nil
 }
 
 func googleSearchifyRaw(phrase string) (string, error) {
@@ -93,32 +112,22 @@ func googleSearchifyRaw(phrase string) (string, error) {
 func SearchPlacesEndpoint(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 
-	//searchResults := googleSearchify(params["phrase"])
-
+	searchResults, _ := googleSearchify(params["phrase"])
+	respondWithJson(w, 200, searchResults)
 	//var objMap = map[string]*json.RawMessage
 	//results, err := json.Unmarshal([])
 
 	//results := searchResults["results"]
 	//log.Print(json.M
 
-	res, err := googleSearchifyRaw(params["phrase"])
-	if err != nil {
-		respondWithError(w, 400, "narf.")
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	w.Write([]byte(res))
-	//respondWithJson(w, http.StatusOK, googleSearchify(params["phrase"]))
-
-	// search, err := .FindById(params["phrase"])
+	// res, err := googleSearchifyRaw(params["phrase"])
 	// if err != nil {
-	// 	respondWithError(w, http.StatusBadRequest, "Invalid Search Phrase")
-	// 	return
+	// 	respondWithError(w, 400, "narf.")
 	// }
+	// w.Header().Set("Content-Type", "application/json")
+	// w.WriteHeader(200)
+	// w.Write([]byte(res))
 
-	// // googleSearchify(phrase) and pass ids to following func
-
-	// respondWithJson(w, http.StatusOK, search)
 }
 
 // func GetPlaceByIdEndpoint(w http.ResponseWriter, r *http.Request) {
@@ -159,6 +168,7 @@ func respondWithJson(w http.ResponseWriter, code int, payload interface{}) {
 
 func main() {
 	r := mux.NewRouter()
+	initPlaces()
 	r.HandleFunc("/placesSearch/{phrase}", SearchPlacesEndpoint).Methods("GET")
 	//r.HandleFunc("/places/{id}", GetPlaceByIdEndpoint).Methods("GET")
 	//r.HandleFunc("/places", CreatePlaceEndpoint).Methods("POST")
