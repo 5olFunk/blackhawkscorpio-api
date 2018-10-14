@@ -18,12 +18,13 @@ import (
 var placesStore []Place
 
 type Place struct {
-	ID      string   `json:"id"`
-	Name    string   `json:"name"`
-	Lat     float64  `json:"lat"`
-	Long    float64  `json:"long"`
-	Images  []string `json:"images"`
-	Ratings []Rating `json:"ratings"`
+	ID      string      `json:"id"`
+	Name    string      `json:"name"`
+	Lat     float64     `json:"lat"`
+	Long    float64     `json:"long"`
+	Images  []string    `json:"images"`
+	Ratings []Rating    `json:"ratings"`
+	Blob    interface{} `json:"blob"`
 }
 
 type Rating struct {
@@ -109,8 +110,10 @@ func hydrateResults(googleResults []Result) []Place {
 		}
 
 		var ratings []Rating
+		var blob interface{}
 		if match != nil {
 			ratings = append(match.Ratings, usrating)
+			blob = match.Blob
 		} else {
 			ratings = append(ratings, usrating)
 		}
@@ -130,10 +133,23 @@ func hydrateResults(googleResults []Result) []Place {
 			Long:    res.Geometry.Location.Lng,
 			Images:  unquotedImages,
 			Ratings: ratings,
+			Blob:    blob,
 		})
 
 	}
 	return places
+}
+
+func GetPlaceById(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	var match Place
+	for _, x := range placesStore {
+		if x.ID == id {
+			match = x
+		}
+	}
+	respondWithJson(w, 200, match)
 }
 
 // this will eventually take a search phrase and return
@@ -181,6 +197,7 @@ func main() {
 	corsObj := handlers.AllowedOrigins([]string{"*"})
 
 	r.HandleFunc("/placesSearch/{phrase}", SearchPlacesEndpoint).Methods("GET")
+	r.HandleFunc("/places/{id}", GetPlaceById).Methods("GET")
 	log.Print("Listening on localhost" + port)
 	if err := http.ListenAndServe(port, handlers.CORS(corsObj)(r)); err != nil {
 		log.Fatal(err)

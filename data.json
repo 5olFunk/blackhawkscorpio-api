@@ -1,21 +1,20 @@
 [
-    {
+  {
     "id": "2cd08fe4952bd66e26fa79cdd43afd1844d203c6",
-    "name": "Chick-fil-A",
-    "lat": 38.5944516,
-    "long": -90.2943142,
-    "images": [
-      "https://maps.google.com/maps/contrib/111326144607002062625/photos"
-    ],
     "ratings": [
       {
         "culture": "TX",
-        "score": 6.7,
-        "comments": [
-          "This place is great",
-          "SO MUCH HEARTBURN"
+        "score": 3.14,
+        "comments": ["This place is great", "SO MUCH HEARTBURN"]
+      }
+    ],
+    "blob": {
+        "data1": "hamburgers",
+        "data2": [
+            "yup",
+            "nope",
+            "mexican food"
         ]
-      } 
-    ]
+    }
   }
 ]
